@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>아침 약 체크</title>
+  <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app" hidden>
+    <header class="app-header">
+      <div class="header-inner">
+        <h1 class="app-title">💊 아침 약 체크</h1>
+        <button id="logout-btn" class="ghost-btn" hidden>로그아웃</button>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-view="today" role="tab" aria-selected="true">오늘</button>
+        <button class="tab" data-view="calendar" role="tab" aria-selected="false">기록</button>
+        <button class="tab" data-view="manage" role="tab" aria-selected="false">약 관리</button>
+      </nav>
+    </header>
+
+    <div id="demo-banner" class="demo-banner" hidden>
+      데모 모드 — Supabase 미연결 상태라 이 기기 브라우저에만 저장돼요. README의 연동 방법을 참고하세요.
+    </div>
+
+    <main class="main">
+      <!-- 오늘 -->
+      <section id="view-today" class="view" role="tabpanel">
+        <div class="today-head">
+          <div>
+            <div id="today-date" class="today-date"></div>
+            <div id="today-summary" class="today-summary"></div>
+          </div>
+          <div class="progress-wrap" aria-hidden="true">
+            <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+          </div>
+        </div>
+        <div id="done-banner" class="done-banner" hidden>오늘 약 다 먹었어요 🎉</div>
+        <div id="med-cards" class="med-cards"></div>
+        <div id="today-empty" class="empty" hidden>
+          등록된 약이 없어요.<br /><button class="primary-btn" data-goto="manage">약 등록하러 가기</button>
+        </div>
+      </section>
+
+      <!-- 기록 캘린더 -->
+      <section id="view-calendar" class="view" role="tabpanel" hidden>
+        <div class="cal-nav">
+          <button id="cal-prev" class="ghost-btn" aria-label="이전 달">←</button>
+          <div id="cal-title" class="cal-title"></div>
+          <button id="cal-next" class="ghost-btn" aria-label="다음 달">→</button>
+        </div>
+        <div class="cal-weekdays">
+          <div class="sun">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="sat">토</div>
+        </div>
+        <div id="cal-grid" class="cal-grid"></div>
+        <div class="cal-legend">
+          <span><i class="dot full"></i> 전부 복용</span>
+          <span><i class="dot partial"></i> 일부 복용</span>
+          <span><i class="dot none"></i> 미복용</span>
+        </div>
+      </section>
+
+      <!-- 약 관리 -->
+      <section id="view-manage" class="view" role="tabpanel" hidden>
+        <form id="med-form" class="med-form">
+          <input type="hidden" id="med-id" />
+          <div class="form-row">
+            <label for="med-name">약 이름 <span class="req">*</span></label>
+            <input id="med-name" type="text" required placeholder="예: 혈압약" maxlength="50" />
+          </div>
+          <div class="form-row">
+            <label for="med-dosage">용량</label>
+            <input id="med-dosage" type="text" placeholder="예: 1정 (5mg)" maxlength="50" />
+          </div>
+          <div class="form-row">
+            <label for="med-memo">메모</label>
+            <input id="med-memo" type="text" placeholder="예: 식후 30분" maxlength="100" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" id="med-save" class="primary-btn">약 추가</button>
+            <button type="button" id="med-cancel" class="ghost-btn" hidden>취소</button>
+          </div>
+        </form>
+        <ul id="med-list" class="med-list"></ul>
+        <div id="manage-empty" class="empty" hidden>아직 등록된 약이 없어요. 위에서 추가해 보세요.</div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 로그인 -->
+  <div id="login" class="login-screen" hidden>
+    <div class="login-card">
+      <h1 class="app-title">💊 아침 약 체크</h1>
+      <p class="login-desc">등록된 계정으로 로그인하세요.</p>
+      <form id="login-form">
+        <div class="form-row">
+          <label for="login-email">이메일</label>
+          <input id="login-email" type="email" required autocomplete="username" />
+        </div>
+        <div class="form-row">
+          <label for="login-password">비밀번호</label>
+          <input id="login-password" type="password" required autocomplete="current-password" />
+        </div>
+        <p id="login-error" class="login-error" hidden></p>
+        <button type="submit" class="primary-btn wide">로그인</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 날짜 상세 팝업 -->
+  <div id="day-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="day-modal-title">
+      <div class="modal-head">
+        <h2 id="day-modal-title"></h2>
+        <button id="day-modal-close" class="ghost-btn" aria-label="닫기">✕</button>
+      </div>
+      <ul id="day-modal-list" class="day-detail-list"></ul>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">불러오는 중…</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
