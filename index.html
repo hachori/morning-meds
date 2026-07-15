@@ -29,6 +29,8 @@
       데모 모드 — Supabase 미연결 상태라 이 기기 브라우저에만 저장돼요. README의 연동 방법을 참고하세요.
     </div>
 
+    <div id="person-tabs" class="person-tabs"></div>
+
     <main class="main">
       <!-- 오늘 -->
       <section id="view-today" class="view" role="tabpanel">
@@ -68,8 +70,24 @@
 
       <!-- 약 관리 -->
       <section id="view-manage" class="view" role="tabpanel" hidden>
+        <h2 class="section-title">가족 구성원</h2>
+        <form id="person-form" class="med-form person-form">
+          <input type="hidden" id="person-id" />
+          <div class="person-form-row">
+            <input id="person-name" type="text" required placeholder="이름 (예: 엄마)" maxlength="20" />
+            <button type="submit" id="person-save" class="primary-btn">추가</button>
+            <button type="button" id="person-cancel" class="ghost-btn" hidden>취소</button>
+          </div>
+        </form>
+        <ul id="person-list" class="med-list"></ul>
+
+        <h2 class="section-title" id="med-section-title">약 관리</h2>
         <form id="med-form" class="med-form">
           <input type="hidden" id="med-id" />
+          <div class="form-row">
+            <label for="med-person">누구의 약인가요?</label>
+            <select id="med-person"></select>
+          </div>
           <div class="form-row">
             <label for="med-name">약 이름 <span class="req">*</span></label>
             <input id="med-name" type="text" required placeholder="예: 혈압약" maxlength="50" />

@@ -67,6 +67,40 @@ body {
   color: var(--ink-2); font-size: 0.85rem;
 }
 
+/* ---------- 가족(사람) 탭 ---------- */
+.person-tabs {
+  display: flex; gap: 8px; margin: 14px 0 2px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.person-tabs::-webkit-scrollbar { display: none; }
+.person-chip {
+  appearance: none; font: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 15px; border-radius: 999px; white-space: nowrap;
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  border: 1.5px solid var(--border);
+}
+.person-chip.active { border-color: var(--accent); color: var(--accent); }
+.person-chip .p-status { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.person-chip .p-status.done { color: var(--good-text); }
+.person-chip .p-status.partial { color: var(--warning); }
+
+/* ---------- 약 관리: 섹션/사람 폼 ---------- */
+.section-title { font-size: 0.95rem; color: var(--ink-2); margin: 22px 2px 0; }
+.person-form-row { display: flex; gap: 8px; }
+.person-form-row input {
+  flex: 1; min-width: 0; padding: 11px 12px; font: inherit;
+  border: 1px solid var(--hairline); border-radius: 10px;
+  background: var(--plane); color: var(--ink);
+}
+.person-form-row input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.form-row select {
+  width: 100%; padding: 11px 12px; font: inherit;
+  border: 1px solid var(--hairline); border-radius: 10px;
+  background: var(--plane); color: var(--ink);
+}
+
 /* ---------- 오늘 ---------- */
 .today-head { padding: 18px 2px 6px; }
 .today-date { font-size: 1.05rem; font-weight: 700; }
