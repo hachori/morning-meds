@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#101418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+<title>카드 더미</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #101418;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                 "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  /* ── 화면 회전 래퍼 (기기를 바닥에 놓는 방향에 맞춤) ───────────────── */
+  #rot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: 50% 50%;
+  }
+
+  /* ── 탭 영역 = 화면 전체 ──────────────────────────────────────────── */
+  #stage {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    perspective: 1400px;
+  }
+
+  /* ── 카드 더미 ────────────────────────────────────────────────────── */
+  #pileWrap { position: relative; }
+
+  .edge {
+    position: absolute;
+    inset: 0;
+    border-radius: 6.5% / 4.7%;
+    background: #e9edf2;
+    box-shadow: 0 1px 0 rgba(0,0,0,.18);
+  }
+  .edge.e1 { transform: translate(5px, 5px) rotate(.7deg); }
+  .edge.e2 { transform: translate(9px, 9px) rotate(1.4deg); }
+
+  .card {
+    position: absolute;
+    inset: 0;
+    border-radius: 6.5% / 4.7%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
+  }
+
+  /* 카드 앞면 */
+  .face {
+    width: 100%; height: 100%;
+    display: grid;
+    place-items: center;
+    background: #fdfdfb;
+    border: 2px solid rgba(0,0,0,.07);
+    border-radius: inherit;
+  }
+  .grid3 {
+    width: 90%;
+    aspect-ratio: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 2%;
+    place-items: center;
+  }
+  .slot { width: 100%; height: 100%; display: grid; place-items: center; }
+  .slot svg { width: 100%; height: 100%; display: block; }
+
+  /* 카드 뒷면 */
+  .back {
+    width: 100%; height: 100%;
+    border-radius: inherit;
+    background:
+      repeating-linear-gradient( 45deg, rgba(255,255,255,.055) 0 9px, transparent 9px 18px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,.055) 0 9px, transparent 9px 18px),
+      linear-gradient(160deg, #2b3f63, #16233c);
+    border: 2px solid rgba(255,255,255,.14);
+    display: grid;
+    place-items: center;
+  }
+  .back::after {
+    content: "";
+    width: 46%; aspect-ratio: 1/1;
+    border: 3px solid rgba(255,255,255,.16);
+    border-radius: 50%;
+  }
+
+  /* 시작 안내 */
+  #hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    pointer-events: none;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: rgba(255,255,255,.9);
+    text-shadow: 0 2px 10px rgba(0,0,0,.5);
+    line-height: 1.5;
+  }
+
+  /* 뒤집기 애니메이션 레이어 */
+  #flipper {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    transform: rotateX(180deg);
+    visibility: hidden;
+    will-change: transform;
+  }
+  #flipper.anim { transition: transform .24s cubic-bezier(.2,.75,.3,1); }
+  #flipper.down { transform: rotateX(0deg); }
+  #flipFront { transform: rotateX(0deg); }
+  #flipBack  { transform: rotateX(180deg); }
+
+  /* ── HUD ──────────────────────────────────────────────────────────── */
+  #count {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,.34);
+    pointer-events: none;
+  }
+  #gear {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 6px);
+    left: calc(env(safe-area-inset-left, 0px) + 6px);
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 0; background: transparent;
+    color: rgba(255,255,255,.28);
+    font-size: 19px;
+    cursor: pointer;
+    z-index: 20;
+  }
+  #toast {
+    position: fixed;
+    left: 50%; top: calc(env(safe-area-inset-top, 0px) + 14px);
+    transform: translateX(-50%) translateY(-14px);
+    background: rgba(0,0,0,.78);
+    border: 1px solid rgba(255,255,255,.12);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+    opacity: 0;
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+    z-index: 30;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── 설정 시트 ────────────────────────────────────────────────────── */
+  #sheet {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 40;
+    backdrop-filter: blur(3px);
+  }
+  #sheet.open { display: flex; }
+  #panel {
+    width: 100%;
+    max-width: 460px;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: #1a2028;
+    border-radius: 20px 20px 0 0;
+    padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 22px);
+    border-top: 1px solid rgba(255,255,255,.1);
+  }
+  #panel h2 { font-size: 16px; margin-bottom: 4px; }
+  #panel .sub { font-size: 12px; color: rgba(255,255,255,.42); margin-bottom: 16px; line-height: 1.6; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 11px 0;
+    border-top: 1px solid rgba(255,255,255,.07);
+  }
+  .row label { font-size: 14px; font-weight: 600; }
+  .row .desc { font-size: 11px; color: rgba(255,255,255,.38); margin-top: 3px; line-height: 1.5; }
+  .row input[type=text], .row select {
+    background: #262f3b; color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 9px; padding: 9px 11px;
+    font-size: 15px; font-family: inherit;
+    min-width: 108px; text-align: center;
+  }
+  .row input[type=text] { text-transform: uppercase; letter-spacing: .12em; }
+  .sw {
+    position: relative; width: 48px; height: 28px; flex: none;
+    background: #39424f; border-radius: 999px; border: 0; cursor: pointer;
+    transition: background .18s;
+  }
+  .sw::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 22px; height: 22px; border-radius: 50%; background: #fff;
+    transition: transform .18s;
+  }
+  .sw.on { background: #3b82f6; }
+  .sw.on::after { transform: translateX(20px); }
+  .btns { display: flex; gap: 9px; margin-top: 18px; }
+  .btn {
+    flex: 1; padding: 13px; border-radius: 11px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: #262f3b; color: #fff;
+    font-size: 14px; font-weight: 700; font-family: inherit;
+    cursor: pointer;
+  }
+  .btn.primary { background: #3b82f6; border-color: #3b82f6; }
+  .btn.danger  { color: #fca5a5; }
+</style>
+</head>
+<body>
+
+<div id="rot">
+  <div id="stage">
+    <div id="pileWrap">
+      <div class="edge e2"></div>
+      <div class="edge e1"></div>
+      <div class="card" id="pile"></div>
+      <div id="flipper">
+        <div class="card" id="flipFront"></div>
+        <div class="card" id="flipBack"><div class="back"></div></div>
+      </div>
+      <div id="hint">화면을 터치해<br>카드를 뒤집으세요</div>
+    </div>
+  </div>
+</div>
+
+<div id="count"></div>
+<button id="gear" aria-label="설정">⚙</button>
+<div id="toast"></div>
+
+<div id="sheet">
+  <div id="panel">
+    <h2>설정</h2>
+    <p class="sub">
+      기기를 바닥에 놓고 화면을 탭하면 카드가 한 장씩 뒤집힙니다.<br>
+      종·판정·점수는 진행자가 직접 처리하세요.
+    </p>
+
+    <div class="row">
+      <div>
+        <label for="room">방 코드</label>
+        <div class="desc">모든 기기에 같은 코드를 넣으면<br>56장을 겹치지 않게 나눠 가집니다. (선택)</div>
+      </div>
+      <input type="text" id="room" maxlength="6" placeholder="없음">
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="players">인원</label>
+        <div class="desc">방 코드를 넣었을 때만 적용</div>
+      </div>
+      <select id="players"></select>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="seat">내 자리</label>
+        <div class="desc">기기마다 다른 번호로 지정</div>
+      </div>
+      <select id="seat"></select>
+    </div>
+
+    <div class="row">
+      <div><label for="rot">카드 방향</label></div>
+      <select id="rotSel">
+        <option value="0">기본</option>
+        <option value="90">90°</option>
+        <option value="180">180°</option>
+        <option value="270">270°</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <div><label>남은 장수 표시</label></div>
+      <button class="sw" id="swCount"></button>
+    </div>
+    <div class="row">
+      <div><label>소리</label></div>
+      <button class="sw" id="swSound"></button>
+    </div>
+    <div class="row">
+      <div><label>진동</label></div>
+      <button class="sw" id="swVib"></button>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="btnUndo">되돌리기</button>
+      <button class="btn danger" id="btnShuffle">다시 섞기</button>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="btnClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════════
+   1. 덱 — 원작 할리갈리 구성
+      과일 4종 × 14장 = 56장
+      과일마다 1개짜리 5장 / 2개 3장 / 3개 3장 / 4개 2장 / 5개 1장
+   ══════════════════════════════════════════════════════════════════ */
+const FRUITS = ['banana', 'lime', 'strawberry', 'plum'];
+const COUNTS = [1,1,1,1,1, 2,2,2, 3,3,3, 4,4, 5];   // 14장
+
+function buildDeck() {
+  const d = [];
+  for (const f of FRUITS) for (const n of COUNTS) d.push({ f, n });
+  return d;                                          // 56장
+}
+
+/* 과일 그림 — 개수를 눈으로 세는 게임이므로 숫자는 절대 쓰지 않는다.
+   색만이 아니라 형태로도 구분되게 그려 색약 사용자도 판별 가능. */
+const ART = {
+  banana: `<svg viewBox="7 4 86 86">
+    <path d="M20 76 C 22 44 44 20 78 17" fill="none" stroke="#EFB918" stroke-width="20" stroke-linecap="round"/>
+    <path d="M20 76 C 22 44 44 20 78 17" fill="none" stroke="#FFD84D" stroke-width="11" stroke-linecap="round"/>
+    <circle cx="79" cy="17" r="6.5" fill="#6B4B15"/>
+    <circle cx="20" cy="76" r="6" fill="#6B4B15"/>
+  </svg>`,
+  lime: `<svg viewBox="12 12 76 76">
+    <circle cx="50" cy="50" r="37" fill="#4E8F2E"/>
+    <circle cx="50" cy="50" r="30" fill="#CBEE70"/>
+    <g stroke="#7FB53F" stroke-width="3.4" stroke-linecap="round">
+      <path d="M50 50 L50 22"/><path d="M50 50 L74 36"/><path d="M50 50 L74 64"/>
+      <path d="M50 50 L50 78"/><path d="M50 50 L26 64"/><path d="M50 50 L26 36"/>
+    </g>
+    <circle cx="50" cy="50" r="4.6" fill="#7FB53F"/>
+  </svg>`,
+  strawberry: `<svg viewBox="8 5 84 90">
+    <path d="M50 92 C 26 79 17 59 21 45 C 25 32 37 27 50 32 C 63 27 75 32 79 45 C 83 59 74 79 50 92 Z" fill="#DC2F2A"/>
+    <path d="M50 33 C 43 25 34 21 25 21 C 32 13 43 12 50 18 C 57 12 68 13 75 21 C 66 21 57 25 50 33 Z" fill="#3F9A45"/>
+    <rect x="46.5" y="8" width="7" height="13" rx="3.5" fill="#3F9A45"/>
+    <g fill="#FFDD6B">
+      <ellipse cx="37" cy="52" rx="3" ry="4"/><ellipse cx="50" cy="47" rx="3" ry="4"/>
+      <ellipse cx="63" cy="52" rx="3" ry="4"/><ellipse cx="43" cy="65" rx="3" ry="4"/>
+      <ellipse cx="57" cy="65" rx="3" ry="4"/><ellipse cx="50" cy="77" rx="3" ry="4"/>
+    </g>
+  </svg>`,
+  plum: `<svg viewBox="12 7 76 88">
+    <circle cx="50" cy="57" r="34" fill="#7A46A8"/>
+    <path d="M50 25 C 43 39 43 76 50 90" stroke="#592F80" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <path d="M50 27 C 55 13 68 8 79 10 C 76 22 64 29 51 28 Z" fill="#3F9A45"/>
+    <rect x="47" y="14" width="6" height="14" rx="3" fill="#5A3A18" transform="rotate(-8 50 21)"/>
+  </svg>`
+};
+
+/* 3×3 격자 배치 — 주사위 눈 패턴이라 한눈에 셀 수 있다 */
+const LAYOUT = { 1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8] };
+
+function renderFace(card) {
+  let slots = '';
+  const on = LAYOUT[card.n];
+  for (let i = 0; i < 9; i++) {
+    slots += `<div class="slot">${on.includes(i) ? ART[card.f] : ''}</div>`;
+  }
+  return `<div class="face"><div class="grid3">${slots}</div></div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   2. 셔플 — 방 코드를 시드로 쓰면 서버 없이도 기기끼리 카드가 겹치지 않는다
+   ══════════════════════════════════════════════════════════════════ */
+function hash32(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+function mulberry32(a) {
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffle(arr, rnd) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* 방 코드가 있으면: 모든 기기가 같은 순서로 56장을 섞은 뒤
+   자기 자리 번호에 해당하는 카드만 골라 간다 → 중복 없이 분배.
+   자기 몫만 다시 섞으므로 몇 바퀴를 돌아도 기기 간 중복이 생기지 않는다. */
+function makePile(st) {
+  const room = st.room.trim().toUpperCase();
+  if (room) {
+    const dealt = shuffle(buildDeck(), mulberry32(hash32(room)))
+      .filter((_, i) => i % st.players === st.seat - 1);
+    return shuffle(dealt, mulberry32(hash32(room + '|' + st.seat + '|' + st.cycle)));
+  }
+  return shuffle(buildDeck(), mulberry32((Math.random() * 4294967296) >>> 0));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   3. 상태
+   ══════════════════════════════════════════════════════════════════ */
+const KEY = 'cardpile.v1';
+const DEF = {
+  room: '', players: 4, seat: 1, rot: 0,
+  showCount: true, sound: true, vib: true,
+  cycle: 0, deck: null, idx: 0
+};
+
+let st = load();
+function load() {
+  try {
+    const s = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}'));
+    if (!Array.isArray(s.deck) || !s.deck.length) { s.deck = null; s.idx = 0; }
+    return s;
+  } catch { return Object.assign({}, DEF); }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} }
+
+function reshuffle(resetIdx) {
+  st.deck = makePile(st);
+  if (resetIdx !== false) st.idx = 0;
+  save();
+}
+if (!st.deck) reshuffle();
+
+/* ══════════════════════════════════════════════════════════════════
+   4. 화면
+   ══════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const rotEl = $('rot'), wrap = $('pileWrap'), pile = $('pile');
+const flipper = $('flipper'), flipFront = $('flipFront');
+const hint = $('hint'), countEl = $('count'), toastEl = $('toast');
+
+function layout() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const swap = st.rot === 90 || st.rot === 270;
+  const w = swap ? vh : vw, h = swap ? vw : vh;
+
+  rotEl.style.width = w + 'px';
+  rotEl.style.height = h + 'px';
+  rotEl.style.transform = `translate(-50%, -50%) rotate(${st.rot}deg)`;
+
+  // 포커 카드 비율 63:88
+  const cw = Math.min(w * 0.9, h * 0.9 * 63 / 88);
+  wrap.style.width = cw + 'px';
+  wrap.style.height = (cw * 88 / 63) + 'px';
+  hint.style.fontSize = Math.max(17, cw * 0.082) + 'px';
+}
+
+function paint() {
+  const card = st.idx > 0 ? st.deck[st.idx - 1] : null;
+  pile.innerHTML = card ? renderFace(card) : '<div class="back"></div>';
+  hint.style.display = st.idx > 0 ? 'none' : 'grid';
+  countEl.textContent = st.showCount
+    ? (st.deck.length - st.idx) + ' / ' + st.deck.length
+    : '';
+}
+
+let toastTimer;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1400);
+}
+
+/* ── 소리: 외부 파일 없이 짧은 종이 넘기는 소리를 합성 ─────────────── */
+let ac = null;
+function clickSound() {
+  if (!st.sound) return;
+  try {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    const dur = 0.055, n = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, n, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 5);
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2100; bp.Q.value = 0.9;
+    const g = ac.createGain(); g.gain.value = 0.3;
+    src.connect(bp); bp.connect(g); g.connect(ac.destination);
+    src.start();
+  } catch {}
+}
+
+/* ── 뒤집기 ────────────────────────────────────────────────────────── */
+let animating = false;
+let endTimer = null;
+
+function settle() {
+  animating = false;
+  clearTimeout(endTimer);
+  flipper.classList.remove('anim', 'down');
+  flipper.style.visibility = 'hidden';
+  paint();
+}
+
+function flip() {
+  if (animating) settle();          // 빠르게 연타해도 밀리지 않게 즉시 확정
+
+  if (st.idx >= st.deck.length) {   // 한 바퀴 다 돌면 조용히 다시 섞는다
+    st.cycle++;
+    reshuffle();
+    toast('덱을 다시 섞었습니다');
+  }
+
+  const card = st.deck[st.idx];
+  st.idx++;
+  save();
+
+  flipFront.innerHTML = renderFace(card);
+  flipper.style.visibility = 'visible';
+  flipper.classList.remove('anim', 'down');
+  void flipper.offsetWidth;                        // reflow — 애니메이션 재시작
+  flipper.classList.add('anim');
+  requestAnimationFrame(() => flipper.classList.add('down'));
+
+  animating = true;
+  endTimer = setTimeout(settle, 260);
+
+  hint.style.display = 'none';
+  countEl.textContent = st.showCount
+    ? (st.deck.length - st.idx) + ' / ' + st.deck.length
+    : '';
+
+  clickSound();
+  if (st.vib && navigator.vibrate) navigator.vibrate(18);
+}
+
+function undo() {
+  if (st.idx <= 0) { toast('되돌릴 카드가 없습니다'); return; }
+  settle();
+  st.idx--;
+  save();
+  paint();
+  toast('한 장 되돌렸습니다');
+}
+
+/* ── 입력: pointerdown 으로 지연 최소화 ───────────────────────────── */
+document.addEventListener('pointerdown', e => {
+  if (e.target.closest('#gear') || e.target.closest('#sheet')) return;
+  e.preventDefault();
+  flip();
+}, { passive: false });
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+/* ── 화면 꺼짐 방지: 기기를 바닥에 두는 게임이라 필수 ──────────────── */
+let wakeLock = null;
+async function keepAwake() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') keepAwake();
+});
+keepAwake();
+
+/* ══════════════════════════════════════════════════════════════════
+   5. 설정 시트
+   ══════════════════════════════════════════════════════════════════ */
+const sheet = $('sheet'), roomIn = $('room'), playersSel = $('players'),
+      seatSel = $('seat'), rotSel = $('rotSel');
+
+for (let i = 2; i <= 6; i++) playersSel.add(new Option(i + '명', i));
+
+function fillSeats() {
+  const cur = st.seat;
+  seatSel.innerHTML = '';
+  for (let i = 1; i <= st.players; i++) seatSel.add(new Option(i + '번', i));
+  seatSel.value = Math.min(cur, st.players);
+  st.seat = +seatSel.value;
+}
+
+function syncSheet() {
+  roomIn.value = st.room;
+  playersSel.value = st.players;
+  fillSeats();
+  rotSel.value = st.rot;
+  $('swCount').classList.toggle('on', st.showCount);
+  $('swSound').classList.toggle('on', st.sound);
+  $('swVib').classList.toggle('on', st.vib);
+}
+
+function toggle(id, key) {
+  $(id).addEventListener('click', () => {
+    st[key] = !st[key];
+    $(id).classList.toggle('on', st[key]);
+    save();
+    paint();
+  });
+}
+toggle('swCount', 'showCount');
+toggle('swSound', 'sound');
+toggle('swVib', 'vib');
+
+$('gear').addEventListener('click', e => {
+  e.stopPropagation();
+  syncSheet();
+  sheet.classList.add('open');
+});
+$('btnClose').addEventListener('click', () => sheet.classList.remove('open'));
+sheet.addEventListener('pointerdown', e => { if (e.target === sheet) sheet.classList.remove('open'); });
+
+// 방 코드 / 인원 / 자리를 바꾸면 덱을 새로 나눠 가진다
+function redeal() {
+  st.cycle = 0;
+  reshuffle();
+  settle();
+  paint();
+}
+roomIn.addEventListener('change', () => {
+  st.room = roomIn.value.trim().toUpperCase();
+  roomIn.value = st.room;
+  redeal();
+  toast(st.room ? `방 ${st.room} · ${st.seat}번 자리` : '개인 덱 56장');
+});
+playersSel.addEventListener('change', () => {
+  st.players = +playersSel.value;
+  fillSeats();
+  redeal();
+  toast(`${st.players}명 · ${st.seat}번 자리`);
+});
+seatSel.addEventListener('change', () => {
+  st.seat = +seatSel.value;
+  redeal();
+  toast(`${st.seat}번 자리`);
+});
+rotSel.addEventListener('change', () => {
+  st.rot = +rotSel.value;
+  save();
+  layout();
+});
+
+$('btnUndo').addEventListener('click', undo);
+$('btnShuffle').addEventListener('click', () => {
+  st.cycle++;
+  reshuffle();
+  settle();
+  paint();
+  toast('다시 섞었습니다');
+});
+
+/* ══════════════════════════════════════════════════════════════════ */
+window.addEventListener('resize', layout);
+window.addEventListener('orientationchange', () => setTimeout(layout, 120));
+layout();
+paint();
+
+})();
+</script>
+</body>
+</html>

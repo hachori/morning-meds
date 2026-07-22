@@ -1,4 +1,4 @@
--- 아침 약 체크 — Supabase 스키마 (신규 설치용)
+-- 약 체크 — Supabase 스키마 (신규 설치용)
 -- Supabase 대시보드 > SQL Editor 에 전체를 붙여넣고 Run 하세요.
 -- 이미 운영 중인 DB에 가족 기능만 추가하려면 migrate-persons.sql 을 사용하세요.
 

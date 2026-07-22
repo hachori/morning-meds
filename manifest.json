@@ -1,7 +1,7 @@
 {
-  "name": "아침 약 체크",
+  "name": "약 체크",
   "short_name": "약 체크",
-  "description": "매일 아침 약 복용 현황 대시보드",
+  "description": "매일 약 복용 현황 대시보드",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f9f9f7",
