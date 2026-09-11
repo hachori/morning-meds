@@ -66,20 +66,25 @@ cat /volume1/homes/hachori/morning-meds/check-meds.log
 
 시간대마다 하나씩, 총 4개를 만듭니다.
 
+> **작업 이름은 영문자·숫자·공백만 됩니다.** 한글이나 하이픈을 넣으면
+> "일부 설정이 유효하지 않습니다" 로 저장이 거부됩니다.
+
 | 작업 이름 | 시각 | 스크립트 |
 |---|---|---|
-| 약 알림 - 아침 | 08:00 | `/volume1/homes/hachori/morning-meds/check-meds.sh morning` |
-| 약 알림 - 점심 | 12:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh lunch` |
-| 약 알림 - 저녁 | 17:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh dinner` |
-| 약 알림 - 자기 전 | 21:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh night` |
+| `meds morning` | 08:00 | `/volume1/homes/hachori/morning-meds/check-meds.sh morning` |
+| `meds lunch` | 12:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh lunch` |
+| `meds dinner` | 17:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh dinner` |
+| `meds night` | 21:30 | `/volume1/homes/hachori/morning-meds/check-meds.sh night` |
 
 각 작업마다:
 
 - **일반 → 사용자**: `hachori` (root 아님 — `.env`를 읽어야 합니다)
 - **스케줄**: 매일 반복, 위 표의 시각
-- **작업 설정 → "실행 세부 정보를 이메일로 보내기"**: 체크하고, 바로 아래 **"비정상 종료된 경우에만 보내기"**도 체크
+- **작업 설정 → "실행 세부 정보를 이메일로 보내기"**: 체크하고 **이메일 주소를 입력**한 뒤,
+  바로 아래 **"비정상 종료된 경우에만 실행 세부 사항 보내기"**도 체크
 
 마지막 항목이 중요합니다. 복약 알림에서 가장 무서운 건 **조용한 실패**인데, 이걸 켜두면 스크립트가 죽었을 때 메일이 옵니다.
+이메일 주소를 비워두면 저장이 거부되므로, 주소를 넣지 않을 거라면 이메일 알림 체크 자체를 꺼야 합니다.
 
 ## 시간을 바꾸려면
 
