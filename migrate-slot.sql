@@ -45,3 +45,9 @@ as $$
 $$;
 
 grant execute on function pending_meds(text, text) to authenticated;
+
+-- Supabase 는 기본 권한으로 anon 에게도 EXECUTE 를 직접 준다.
+-- security invoker + RLS 덕에 anon 이 호출해도 빈 배열이라 데이터가 새지는 않지만,
+-- 호출 자체를 막아 한 겹 더 좁힌다. (`revoke ... from public` 만으로는 빠지지 않는다)
+revoke execute on function pending_meds(text, text) from public;
+revoke execute on function pending_meds(text, text) from anon;
