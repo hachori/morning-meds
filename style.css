@@ -147,6 +147,19 @@ body {
 .med-card.taken .med-name { color: var(--good-text); }
 .med-card.taken .med-time { visibility: visible; }
 
+/* 시간대 구분 머리글 — .med-cards 가 2열 그리드일 때도 한 줄 전체를 차지한다 */
+.slot-head {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 10px 2px 0;
+}
+.slot-head:first-child { margin-top: 0; }
+.slot-head .slot-label { font-size: 0.95rem; font-weight: 700; color: var(--ink); }
+.slot-head .slot-time { font-size: 0.78rem; color: var(--ink-2); }
+.slot-head .slot-count { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--ink-2); }
+.slot-head.done .slot-label,
+.slot-head.done .slot-count { color: var(--good-text); }
+
 /* ---------- 캘린더 ---------- */
 .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 2px 10px; }
 .cal-title { font-weight: 700; font-size: 1.05rem; }

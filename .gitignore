@@ -1,1 +1,4 @@
 .DS_Store
+# 자격증명과 실행 로그는 절대 커밋하지 않는다
+nas/.env
+nas/*.log

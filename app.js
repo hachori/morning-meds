@@ -26,6 +26,20 @@
     return `${m}월 ${d}일 ${day}요일`;
   };
 
+  // ---------- 시간대 ----------
+  // key 는 DB의 medications.slot 값과 1:1. time 은 NAS 알림 스크립트가 도는 시각(표시용).
+  // 알림 시각의 실제 소스는 시놀로지 작업 스케줄러다 — 바꿀 땐 양쪽을 같이 고칠 것.
+  const SLOTS = [
+    { key: "morning", label: "아침",     time: "08:00" },
+    { key: "lunch",   label: "점심",     time: "12:30" },
+    { key: "dinner",  label: "저녁",     time: "17:30" },
+    { key: "night",   label: "자기 전",  time: "21:30" },
+    { key: "anytime", label: "아무 때나", time: null },
+  ];
+  const DEFAULT_SLOT = "anytime";
+  const slotOf = (m) => (SLOTS.some((s) => s.key === m.slot) ? m.slot : DEFAULT_SLOT);
+  const slotInfo = (key) => SLOTS.find((s) => s.key === key) || SLOTS[SLOTS.length - 1];
+
   // ---------- 데이터 계층 ----------
   // 공통 인터페이스:
   //   listPersons, addPerson, updatePerson, deactivatePerson,
@@ -51,6 +65,8 @@
       }
       const defaultPid = db.persons[0].id;
       for (const m of db.meds) if (m.person_id == null) m.person_id = defaultPid;
+      // 시간대 도입 전 데이터
+      for (const m of db.meds) if (m.slot == null) m.slot = DEFAULT_SLOT;
       return db;
     },
     _save(db) { localStorage.setItem(this.KEY, JSON.stringify(db)); },
@@ -73,15 +89,15 @@
       this._save(db);
     },
     async listMeds() { return this._load().meds; },
-    async addMed({ name, dosage, memo, person_id }) {
+    async addMed({ name, dosage, memo, person_id, slot }) {
       const db = this._load();
-      db.meds.push({ id: db.seq++, name, dosage, memo, person_id, active: true, created_at: new Date().toISOString() });
+      db.meds.push({ id: db.seq++, name, dosage, memo, person_id, slot, active: true, created_at: new Date().toISOString() });
       this._save(db);
     },
-    async updateMed(id, { name, dosage, memo, person_id }) {
+    async updateMed(id, { name, dosage, memo, person_id, slot }) {
       const db = this._load();
       const m = db.meds.find((m) => m.id === id);
-      if (m) Object.assign(m, { name, dosage, memo, person_id });
+      if (m) Object.assign(m, { name, dosage, memo, person_id, slot });
       this._save(db);
     },
     async deactivateMed(id) {
@@ -131,12 +147,12 @@
       if (error) throw error;
       return data;
     },
-    async addMed({ name, dosage, memo, person_id }) {
-      const { error } = await sb.from("medications").insert({ name, dosage, memo, person_id });
+    async addMed({ name, dosage, memo, person_id, slot }) {
+      const { error } = await sb.from("medications").insert({ name, dosage, memo, person_id, slot });
       if (error) throw error;
     },
-    async updateMed(id, { name, dosage, memo, person_id }) {
-      const { error } = await sb.from("medications").update({ name, dosage, memo, person_id }).eq("id", id);
+    async updateMed(id, { name, dosage, memo, person_id, slot }) {
+      const { error } = await sb.from("medications").update({ name, dosage, memo, person_id, slot }).eq("id", id);
       if (error) throw error;
     },
     async deactivateMed(id) {
@@ -204,6 +220,7 @@
     medSectionTitle: $("med-section-title"),
     medForm: $("med-form"), medId: $("med-id"), medName: $("med-name"),
     medDosage: $("med-dosage"), medMemo: $("med-memo"), medPerson: $("med-person"),
+    medSlot: $("med-slot"),
     medSave: $("med-save"), medCancel: $("med-cancel"),
     medList: $("med-list"), manageEmpty: $("manage-empty"),
     dayModal: $("day-modal"), dayModalTitle: $("day-modal-title"), dayModalList: $("day-modal-list"),
@@ -268,8 +285,7 @@
     el.doneBanner.hidden = !(meds.length > 0 && takenCount === meds.length);
     el.todayEmpty.hidden = meds.length > 0;
 
-    el.medCards.innerHTML = "";
-    for (const m of meds) {
+    const makeCard = (m) => {
       const log = logByMed.get(m.id);
       const btn = document.createElement("button");
       btn.className = "med-card" + (log ? " taken" : "");
@@ -283,7 +299,23 @@
         </span>
         <span class="med-time">${log ? esc(fmtTime(log.taken_at)) + " 복용" : ""}</span>`;
       btn.addEventListener("click", () => toggleMed(m.id, !!log));
-      el.medCards.appendChild(btn);
+      return btn;
+    };
+
+    // 시간대별로 묶어서, 약이 있는 시간대만 SLOTS 순서대로 그린다.
+    el.medCards.innerHTML = "";
+    for (const slot of SLOTS) {
+      const group = meds.filter((m) => slotOf(m) === slot.key);
+      if (!group.length) continue;
+      const done = group.filter((m) => logByMed.has(m.id)).length;
+      const head = document.createElement("div");
+      head.className = "slot-head" + (done === group.length ? " done" : "");
+      head.innerHTML = `
+        <span class="slot-label">${esc(slot.label)}</span>
+        ${slot.time ? `<span class="slot-time">${esc(slot.time)}</span>` : ""}
+        <span class="slot-count">${done}/${group.length}</span>`;
+      el.medCards.appendChild(head);
+      for (const m of group) el.medCards.appendChild(makeCard(m));
     }
   }
 
@@ -452,6 +484,17 @@
     }
     if (!el.medId.value && state.personId) el.medPerson.value = String(state.personId);
 
+    // 약 등록 폼의 시간대 선택
+    if (!el.medSlot.options.length) {
+      for (const slot of SLOTS) {
+        const opt = document.createElement("option");
+        opt.value = slot.key;
+        opt.textContent = slot.time ? `${slot.label} (${slot.time} 알림)` : `${slot.label} (알림 없음)`;
+        el.medSlot.appendChild(opt);
+      }
+      el.medSlot.value = DEFAULT_SLOT;
+    }
+
     // 선택된 사람의 약 목록
     const person = personById(state.personId);
     el.medSectionTitle.textContent = person ? `${person.name}의 약` : "약 관리";
@@ -459,7 +502,7 @@
     el.manageEmpty.hidden = meds.length > 0;
     el.medList.innerHTML = "";
     for (const m of meds) {
-      const sub = [m.dosage, m.memo].filter(Boolean).join(" · ");
+      const sub = [slotInfo(slotOf(m)).label, m.dosage, m.memo].filter(Boolean).join(" · ");
       const li = document.createElement("li");
       li.className = "med-item";
       li.innerHTML = `
@@ -529,6 +572,7 @@
     el.medDosage.value = m.dosage || "";
     el.medMemo.value = m.memo || "";
     el.medPerson.value = String(m.person_id);
+    el.medSlot.value = slotOf(m);
     el.medSave.textContent = "수정 저장";
     el.medCancel.hidden = false;
     el.medName.focus();
@@ -539,6 +583,7 @@
     el.medId.value = "";
     el.medSave.textContent = "약 추가";
     el.medCancel.hidden = true;
+    el.medSlot.value = DEFAULT_SLOT;
     if (state.personId) el.medPerson.value = String(state.personId);
   }
 
@@ -560,6 +605,7 @@
       dosage: el.medDosage.value.trim() || null,
       memo: el.medMemo.value.trim() || null,
       person_id: Number(el.medPerson.value),
+      slot: el.medSlot.value || DEFAULT_SLOT,
     };
     if (!payload.name || !payload.person_id) return;
     try {
